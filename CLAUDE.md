@@ -10,6 +10,9 @@ She is not watching the run: make sensible calls, never stop to ask, and message
 
 ## Daily procedure
 
+0. **One post per day.** If `state.json.posted` already has an entry dated today (Toronto date) — posted or
+   scheduled — do nothing except a one-line note to the owner, and stop.
+
 1. `git pull` in this repo, then `bash pipeline/setup.sh` (installs deps + voice model; ~1 min).
 2. Read `state.json` → `next_day`. If `specs/dayNN.json` already exists for that day, use it (skip step 3). Take that day's entry from `lessons.json` (book, author, idea, hook_idea).
    If lessons run out, pick a new well-known self-help book not used in `state.json.posted`.
