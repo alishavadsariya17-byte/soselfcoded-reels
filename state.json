@@ -1,5 +1,5 @@
 {
- "next_day": 2,
+ "next_day": 3,
  "instagram_account_id": "29410977918494469",
  "instagram_handle": "so.self.coded_",
  "post_time": "19:30 America/Toronto",
@@ -9,6 +9,16 @@
    "date": "2026-10-30",
    "file": "reels/2026-10-31_let-them-let-me.mp4",
    "status": "posted manually by owner (2026-10-30)"
+  },
+  {
+   "day": 2,
+   "date": "2026-10-31",
+   "file": "reels/2026-10-31_outgrow-it.mp4",
+   "book": "The Mountain Is You",
+   "hook": "I saw a line that explained why I'm stuck.",
+   "permalink": "https://www.instagram.com/reel/DfLTX3ulKjM/",
+   "media_id": "18171536440464708",
+   "status": "published automatically"
   }
  ],
  "approval_required": false
