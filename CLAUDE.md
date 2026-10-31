@@ -5,13 +5,14 @@ Brand: self-empowerment and resilience; each Reel is one lesson from a well-know
 rewritten in our own words. Signed **SO.SELF.CODED**. Approved look: light cream background,
 espresso serif-italic text, terracotta accent, soft female voiceover, soft dreamy piano kept low.
 
-The owner approved **fully automatic daily posting** (one Reel per day, ~7:30 pm Toronto) on 2026-10-30.
-She is not watching the run: make sensible calls, never stop to ask, and message her the result at the end.
+**APPROVAL REQUIRED (owner's instruction, 2026-10-30): never publish anything until Alisha explicitly approves
+that exact Reel and caption in the run's conversation.** Each run builds one new Reel in the same niche, sends
+it to her, and waits. If she asks for changes, revise and send again. If she never replies, nothing is posted.
 
 ## Daily procedure
 
-0. **One post per day.** If `state.json.posted` already has an entry dated today (Toronto date) — posted or
-   scheduled — do nothing except a one-line note to the owner, and stop.
+0. **One Reel per day.** If `state.json.posted` already has an entry dated today (Toronto date), or a previous
+   draft is still `awaiting approval`, do not build another one; remind her in one line and stop.
 
 1. `git pull` in this repo, then `bash pipeline/setup.sh` (installs deps + voice model; ~1 min).
 2. Read `state.json` → `next_day`. If `specs/dayNN.json` already exists for that day, use it (skip step 3). Take that day's entry from `lessons.json` (book, author, idea, hook_idea).
@@ -33,7 +34,12 @@ She is not watching the run: make sensible calls, never stop to ask, and message
    (above that she sounds rushed). If a segment needed > 1.0, shorten that text in the spec and rebuild.
 5. Verify before posting: `ffprobe` shows 1080x1920 and ~28.5 s; extract frames at 0.2, 4, 8, 22, 27.5 s and
    look at them (text readable, nothing cut off, nothing overlapping). Fix and rebuild if anything is wrong.
-6. Publish the file:
+6. **Ask for approval.** Push the video (step below), then send Alisha the mp4 (SendUserFile), its cover, the
+   caption, and one line on the lesson. Ask: "Approve to post, or tell me what to change." Record it in
+   `state.json.posted` as `awaiting approval`. Then wait for her reply in this conversation.
+   - Approve → publish (below). Changes → edit the spec, rebuild, re-send, wait again.
+   - She may say when to post (e.g. "at 7:30"); if so, use send_later to wake this conversation then.
+7. Publish the file (only after approval):
    - `git add reels/... specs/... && git commit && git push` (end commit messages with the session's
      attribution lines).
    - Public URL: `https://raw.githubusercontent.com/alishavadsariya17-byte/soselfcoded-reels/main/<path>`.
@@ -41,8 +47,8 @@ She is not watching the run: make sensible calls, never stop to ask, and message
    - `vidiq_instagram_publish_reel` with `platformAccountId` `29410977918494469`, that `videoUrl`, the spec's
      `caption`; no trial params; do not set `isAiGenerated` unless the owner asks. Continue with the returned
      `containerId`/`mcpJobId` until `PUBLISHED`. Never retry a failed publish automatically.
-7. Update `state.json` (append to `posted` with day, date, file, permalink or error; bump `next_day`), commit, push.
-8. Message the owner (SendUserMessage + push notification if available): what posted, the permalink,
+8. Update `state.json` (append to `posted` with day, date, file, permalink or error; bump `next_day`), commit, push.
+9. Message the owner (SendUserMessage + push notification if available): what posted, the permalink,
    the hook line. If anything failed, say exactly what and attach the mp4 so she can post it by hand.
 
 ## Weekly (Sundays)

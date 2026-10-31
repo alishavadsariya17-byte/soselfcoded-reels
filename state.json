@@ -6,9 +6,10 @@
  "posted": [
   {
    "day": 1,
-   "date": "2026-10-31",
+   "date": "2026-10-30",
    "file": "reels/2026-10-31_let-them-let-me.mp4",
-   "status": "scheduled (first post)"
+   "status": "posted manually by owner (2026-10-30)"
   }
- ]
+ ],
+ "approval_required": true
 }
