@@ -1,5 +1,5 @@
 {
- "next_day": 3,
+ "next_day": 4,
  "instagram_account_id": "29410977918494469",
  "instagram_handle": "so.self.coded_",
  "post_time": "19:30 America/Toronto",
@@ -18,6 +18,16 @@
    "hook": "I saw a line that explained why I'm stuck.",
    "permalink": "https://www.instagram.com/reel/DfLTX3ulKjM/",
    "media_id": "18171536440464708",
+   "status": "published automatically"
+  },
+  {
+   "day": 3,
+   "date": "2026-11-01",
+   "file": "reels/2026-11-01_care-less-choose.mp4",
+   "book": "The Subtle Art of Not Giving a F*ck",
+   "hook": "Tired all the time? This might be why.",
+   "permalink": "https://www.instagram.com/reel/DfN_SAmEhEC/",
+   "media_id": "17986204134089958",
    "status": "published automatically"
   }
  ],
