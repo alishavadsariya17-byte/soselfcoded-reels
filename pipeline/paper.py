@@ -327,23 +327,43 @@ def build(spec_path, out):
         g = np.random.default_rng(int(t * FPS)).integers(-3, 4, (H // 2, W // 2), dtype=np.int16).repeat(2, 0).repeat(2, 1)
         return Image.fromarray(np.clip(np.asarray(img, np.int16) + g[..., None], 0, 255).astype(np.uint8))
 
-    if out.endswith(".png"):  # quick still preview of the final frame
-        frame(dur - 0.1).save(out); print("still", out); return
+    final = frame(dur - 0.05)
+    if out.endswith(".png"):  # quick still preview of the final frame (= the cover / grid thumbnail)
+        final.save(out); print("still", out); return
+    # Cover-first: hold the finished design (this frame becomes the Reel thumbnail and makes the loop seamless),
+    # dissolve to the start of the animation, then rebuild it.
+    ic, xf = s.get("intro_cover", 0.7), s.get("intro_fade", 0.35)
+    total = ic + xf + dur
+
+    def out_frame(T):
+        if T < ic:
+            return final
+        if T < ic + xf:
+            return Image.blend(final, frame(0.0), smooth((T - ic) / xf))
+        return frame(T - ic - xf)
+
     mu = s.get("music", {})
     wk = tempfile.mkdtemp()
     wav = os.path.join(wk, "m.wav")
-    subprocess.run([sys.executable, os.path.join(HERE, "lofi.py"), wav, str(dur), mu.get("mood", "dreamy"),
-                    str(mu.get("key", 0)), str(mu.get("seed", 7))], check=True, stdout=subprocess.DEVNULL)
+    if mu.get("style"):
+        subprocess.run([sys.executable, os.path.join(HERE, "songs.py"), wav, str(total), mu["style"],
+                        str(mu.get("key", 0)), str(mu.get("seed", 1))], check=True, stdout=subprocess.DEVNULL)
+    else:
+        subprocess.run([sys.executable, os.path.join(HERE, "lofi.py"), wav, str(total), mu.get("mood", "dreamy"),
+                        str(mu.get("key", 0)), str(mu.get("seed", 7))], check=True, stdout=subprocess.DEVNULL)
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
-           "-i", "-", "-i", wav, "-filter:a", f"volume={mu.get('volume', 0.6)}", "-c:v", "libx264", "-preset", "medium",
-           "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", out]
+           "-i", "-", "-i", wav, "-filter:a", f"volume={mu.get('volume', 1.0 if mu.get('style') else 0.6)}", "-c:v", "libx264",
+           "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-shortest",
+           "-movflags", "+faststart", out]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    for i in range(int(round(dur * FPS))):
-        p.stdin.write(frame(i / FPS).tobytes())
+    for i in range(int(round(total * FPS))):
+        p.stdin.write(out_frame(i / FPS).tobytes())
     p.stdin.close(); p.wait()
-    frame(dur - 0.1).save(out.rsplit(".", 1)[0] + "_cover.jpg", quality=90)
-    print(f"built {out} ({dur:.1f}s)")
+    final.save(out.rsplit(".", 1)[0] + "_cover.jpg", quality=92)
+    # 3:4 grid preview (what the profile grid shows)
+    final.crop((0, 240, W, 1680)).resize((540, 720)).save(out.rsplit(".", 1)[0] + "_grid.jpg", quality=88)
+    print(f"built {out} ({total:.1f}s)")
 
 
 if __name__ == "__main__":

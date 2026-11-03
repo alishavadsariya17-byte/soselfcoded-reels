@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# One-time (per session) setup for the daily Reel pipeline. Safe to re-run.
+# Per-session setup for the Reel pipeline (quote-page Reels + song-style music). Safe to re-run. ~1 min.
 set -e
 cd "$(dirname "$0")/.."
 which ffmpeg >/dev/null || { echo "ffmpeg missing"; exit 1; }
-python3 -c "import kokoro_onnx, soundfile, scipy, PIL, numpy" 2>/dev/null || \
-  pip install --break-system-packages -q kokoro-onnx soundfile scipy pillow numpy
-mkdir -p .models
-for f in kokoro-v1.0.onnx voices-v1.0.bin; do
-  [ -s ".models/$f" ] || curl -sSL -o ".models/$f" \
-    "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/$f"
-done
-ls -la .models
+if ! which fluidsynth >/dev/null || [ ! -s /usr/share/sounds/sf2/FluidR3_GM.sf2 ]; then
+  (apt-get install -y --no-install-recommends fluidsynth fluid-soundfont-gm >/dev/null 2>&1) || \
+  (apt-get update >/dev/null 2>&1 && apt-get install -y --no-install-recommends fluidsynth fluid-soundfont-gm >/dev/null 2>&1)
+fi
+python3 -c "import mido, scipy, PIL, numpy" 2>/dev/null || \
+  pip install --break-system-packages -q mido scipy pillow numpy
+python3 pipeline/songs.py /tmp/_songtest.wav 2 tender_piano >/dev/null && echo "music ok"
 echo "setup ok"

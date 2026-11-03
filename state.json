@@ -2,7 +2,6 @@
  "next_day": 5,
  "instagram_account_id": "29410977918494469",
  "instagram_handle": "so.self.coded_",
- "post_time": "19:30 America/Toronto",
  "posted": [
   {
    "day": 1,
@@ -41,5 +40,10 @@
    "status": "published automatically"
   }
  ],
- "approval_required": false
+ "approval_required": false,
+ "format": "quote-page reels (pipeline/paper.py), 2 per day",
+ "post_times": [
+  "12:05 America/Toronto",
+  "19:05 America/Toronto"
+ ]
 }
