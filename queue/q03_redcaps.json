@@ -1,5 +1,49 @@
-{"slug":"stop-shrinking","format":"redcaps","bg":"paper","paper":[241,236,228],"mottle":0.3,"specks":0.9,"speck_color":[150,60,60],"align":"center","x":0,"width":500,"y_offset":60,"duration":7,
- "blocks":[
-  {"text":"stop shrinking to fit places you've already outgrown","font":"indie","size":66,"upper":true,"color":[146,24,30],"lh":1.32,"rotate":-6,"t":0.3,"style":"write","cps":20,"heart":true,"space":1.4}],
- "music":{"style":"hopeful_guitar","key":2,"seed":14},
- "caption":"You're allowed to outgrow rooms that once felt like home. 🖤\nWhat have you outgrown this year? 👇\nSave this as your sign to take up space.\n\n#growth #selfworth #outgrow #handwrittenquotes #womenempowerment #soselfcoded"}
+{
+ "slug": "stop-shrinking",
+ "format": "redcaps",
+ "bg": "paper",
+ "paper": [
+  241,
+  236,
+  228
+ ],
+ "mottle": 0.3,
+ "specks": 0.9,
+ "speck_color": [
+  150,
+  60,
+  60
+ ],
+ "align": "center",
+ "x": 0,
+ "width": 500,
+ "y_offset": 60,
+ "duration": 7,
+ "blocks": [
+  {
+   "text": "stop shrinking to fit places you've already outgrown",
+   "font": "indie",
+   "size": 66,
+   "upper": true,
+   "color": [
+    146,
+    24,
+    30
+   ],
+   "lh": 1.32,
+   "rotate": -6,
+   "t": 0.3,
+   "style": "write",
+   "cps": 20,
+   "heart": true,
+   "space": 1.4
+  }
+ ],
+ "music": {
+  "style": "hopeful_guitar",
+  "key": 2,
+  "seed": 14
+ },
+ "caption": "You're allowed to outgrow rooms that once felt like home. 🖤\nWhat have you outgrown this year? 👇\nSave this as your sign to take up space.\n\n#growth #selfworth #outgrow #handwrittenquotes #womenempowerment #soselfcoded",
+ "silent": true
+}

@@ -345,7 +345,10 @@ def build(spec_path, out):
     mu = s.get("music", {})
     wk = tempfile.mkdtemp()
     wav = os.path.join(wk, "m.wav")
-    if mu.get("style"):
+    if s.get("silent"):  # song-ready draft: Alisha adds a song from Instagram's library in the app
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", str(total), wav],
+                       check=True)
+    elif mu.get("style"):
         subprocess.run([sys.executable, os.path.join(HERE, "songs.py"), wav, str(total), mu["style"],
                         str(mu.get("key", 0)), str(mu.get("seed", 1))], check=True, stdout=subprocess.DEVNULL)
     else:

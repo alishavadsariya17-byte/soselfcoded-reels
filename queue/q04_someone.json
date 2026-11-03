@@ -1,7 +1,47 @@
-{"slug":"stop-waiting-for-sorry","format":"someone","bg":"paper","paper":[236,234,230],"mottle":0.3,"specks":0.05,"fiber":1.6,"x":95,"width":880,"y_offset":120,"duration":8,
- "blocks":[
-  {"text":"Someone once said","font":"garamond","size":56,"t":0.3},
-  {"text":"\"The day you stop waiting for their apology is the day your healing finally gets a start date.\"","font":"garamond","size":56,"lh":1.55,"gap":75,"t":1.1},
-  {"text":"and I felt that.","font":"garamond","size":56,"gap":75,"t":3.4}],
- "music":{"style":"tender_piano","key":1,"seed":23},
- "caption":"You can heal without their sorry. 🖤\nWho are you still waiting on? Let it go tonight.\nSend this to someone who needs closure from herself.\n\n#closure #healing #movingon #selflove #quotes #soselfcoded"}
+{
+ "slug": "stop-waiting-for-sorry",
+ "format": "someone",
+ "bg": "paper",
+ "paper": [
+  236,
+  234,
+  230
+ ],
+ "mottle": 0.3,
+ "specks": 0.05,
+ "fiber": 1.6,
+ "x": 95,
+ "width": 880,
+ "y_offset": 120,
+ "duration": 8,
+ "blocks": [
+  {
+   "text": "Someone once said",
+   "font": "garamond",
+   "size": 56,
+   "t": 0.3
+  },
+  {
+   "text": "\"The day you stop waiting for their apology is the day your healing finally gets a start date.\"",
+   "font": "garamond",
+   "size": 56,
+   "lh": 1.55,
+   "gap": 75,
+   "t": 1.1
+  },
+  {
+   "text": "and I felt that.",
+   "font": "garamond",
+   "size": 56,
+   "gap": 75,
+   "t": 3.4
+  }
+ ],
+ "music": {
+  "style": "tender_piano",
+  "key": 1,
+  "seed": 23
+ },
+ "caption": "You can heal without their sorry. 🖤\nWho are you still waiting on? Let it go tonight.\nSend this to someone who needs closure from herself.\n\n#closure #healing #movingon #selflove #quotes #soselfcoded",
+ "silent": true
+}
