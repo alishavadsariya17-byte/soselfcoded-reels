@@ -1,5 +1,5 @@
 {
- "next_day": 4,
+ "next_day": 5,
  "instagram_account_id": "29410977918494469",
  "instagram_handle": "so.self.coded_",
  "post_time": "19:30 America/Toronto",
@@ -28,6 +28,16 @@
    "hook": "Tired all the time? This might be why.",
    "permalink": "https://www.instagram.com/reel/DfN_SAmEhEC/",
    "media_id": "17986204134089958",
+   "status": "published automatically"
+  },
+  {
+   "day": 4,
+   "date": "2026-11-02",
+   "file": "reels/2026-11-02_not-a-fact.mp4",
+   "book": "Don't Believe Everything You Think",
+   "hook": "You don't have to believe every thought you have.",
+   "permalink": "https://www.instagram.com/reel/DfQkbQ4leSu/",
+   "media_id": "17953375815330337",
    "status": "published automatically"
   }
  ],
