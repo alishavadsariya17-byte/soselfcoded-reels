@@ -1,0 +1,45 @@
+{
+ "bg": "coffee",
+ "x": 0,
+ "width": 640,
+ "align": "center",
+ "y_offset": -110,
+ "duration": 8,
+ "zoom": [
+  1.0,
+  1.05
+ ],
+ "blocks": [
+  {
+   "text": "the best reminder\ni ever got:",
+   "font": "sserif",
+   "size": 52,
+   "color": [
+    238,
+    232,
+    224
+   ],
+   "t": 0.3,
+   "lh": 1.25
+  },
+  {
+   "text": "\"you don't have to fix your whole life today. just finish your coffee.\"",
+   "font": "sserif",
+   "size": 52,
+   "color": [
+    238,
+    232,
+    224
+   ],
+   "lh": 1.25,
+   "gap": 60,
+   "t": 1.4
+  }
+ ],
+ "music": {
+  "mood": "warm",
+  "key": -2,
+  "seed": 4
+ },
+ "caption": "Not everything has to be solved before noon. ☕🖤\nWhat are you giving yourself a break from today? 👇\nSend this to someone who needs a slow morning.\n\n#slowliving #coffeequotes #selfcare #morningthoughts #gentlereminder #soselfcoded"
+}

@@ -9,6 +9,11 @@ espresso serif-italic text, terracotta accent, soft female voiceover, soft dream
 7:30 pm Toronto without asking.** She is not watching the run: make sensible calls, never stop to ask, and
 message her the result (with the permalink) at the end. She can switch back to approval-first at any time.
 
+**PAUSED 2026-11-03 (owner request: switching style).** Alisha is choosing a new look from
+`examples3/` (short quote-page Reels with background music, made by `pipeline/paper.py`). Until this note is
+removed, scheduled runs must NOT build or post anything; just send her one line: "Daily Reels are paused
+until you pick a style from the examples." Do not resume the old voiceover/book format.
+
 ## Daily procedure
 
 0. **One Reel per day.** If `state.json.posted` already has an entry dated today (Toronto date), do nothing

@@ -1,0 +1,58 @@
+{
+ "bg": "paper",
+ "paper": [
+  238,
+  229,
+  226
+ ],
+ "mottle": 0.3,
+ "specks": 0.0,
+ "fiber": 0.5,
+ "x": 160,
+ "width": 800,
+ "duration": 8.5,
+ "blocks": [
+  {
+   "text": "Some chapters",
+   "font": "gaegu",
+   "size": 64,
+   "color": [
+    40,
+    36,
+    34
+   ],
+   "t": 0.3
+  },
+  {
+   "text": "end without an explanation, and you still get to turn the page.",
+   "font": "gaegu",
+   "size": 64,
+   "color": [
+    40,
+    36,
+    34
+   ],
+   "lh": 1.35,
+   "gap": 70,
+   "t": 1.2
+  },
+  {
+   "text": "and that's okay.",
+   "font": "gaegu",
+   "size": 64,
+   "color": [
+    40,
+    36,
+    34
+   ],
+   "gap": 70,
+   "t": 3.4
+  }
+ ],
+ "music": {
+  "mood": "dreamy",
+  "key": 2,
+  "seed": 27
+ },
+ "caption": "You don't need closure to move on. 🖤\nWhat chapter are you closing this year? 👇\nSave this for when you're waiting on an apology that won't come.\n\n#movingon #newchapter #quotes #healingjourney #letgo #soselfcoded"
+}

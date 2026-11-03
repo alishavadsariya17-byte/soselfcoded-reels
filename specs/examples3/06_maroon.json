@@ -1,0 +1,6 @@
+{"bg":"solid","paper":[104,22,24],"x":110,"width":440,"duration":7,
+ "blocks":[
+  {"text":"it's okay to take a nap. you've been surviving all day.","font":"indie","size":58,"upper":true,"color":[244,236,228],"lh":1.32,"t":0.3,"style":"write","cps":20,"space":1.3},
+  {"text":"so.self.coded","font":"corm_i","size":40,"align":"center","color":[214,150,90],"gap":620,"t":1.0}],
+ "music":{"mood":"warm","key":3,"seed":2},
+ "caption":"Rest counts. Especially on the days you held it together. 🖤😴\nTag the friend who needs this nap.\n\n#relatable #selfcare #rest #funnyquotes #mentalhealth #soselfcoded"}
