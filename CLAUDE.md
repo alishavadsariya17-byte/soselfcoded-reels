@@ -7,12 +7,11 @@ accounts. Textured paper, small serif or handwritten text, lots of empty space, 
 that fits the words, and no voiceover. Her reference images are in `references/`. Look at the newest ones before
 writing, because she adds more over time and they show where she wants the page to go.
 
-**SONG-READY DRAFTS, TWICE A DAY (owner's choice 2026-11-03): a midday draft (~12:05 Toronto) and an evening
-draft (~19:05 Toronto).** She wants real movie songs on her Reels. Copyrighted songs can't go inside the file
-(Instagram mutes or removes them), so each run builds a **silent** video and sends it to her with the caption and
-3 song picks from `songs.md`. She posts it from the Instagram app and adds the song there. **Do not publish
-anything yourself** unless she switches back to auto-posting. She is not watching the runs: make sensible
-calls and never stop to ask.
+**FULLY AUTOMATIC, TWICE A DAY (owner's choice, reconfirmed 2026-11-03): a midday post (~12:05 Toronto) and an
+evening post (~19:05 Toronto), with our own composed music (`pipeline/songs.py`).** She is not watching the runs.
+Make sensible calls, never stop to ask, and message her the result with the permalink at the end. (She tried
+song-ready drafts for real movie songs and switched back. `songs.md` and `"silent": true` stay available if she
+asks for drafts again.)
 
 ## Content rules (this is what makes or breaks reach)
 - **Own words only.** Never copy another account's line or a book passage beyond 2–4 words. Book lessons are
@@ -42,11 +41,11 @@ calls and never stop to ask.
   profile grid stays beautiful. Keep all text inside the middle 3:4 area (y 240–1680) so the grid crop never
   cuts it. Check the `_grid.jpg` that each build writes. The profile should read as one calm aesthetic: soft
   neutrals with the occasional deep colour (maroon, coffee black).
-- Audio: every spec has `"silent": true` (she adds a real song in the app). Keep a `"music": {"style": ...}`
-  entry as the mood tag. `pipeline/songs.py` (our own composed music with real instruments) is only used if
-  she switches back to auto-posting. Never put copyrighted songs in the file.
-- Songs: choose 3 from `songs.md` that fit the words: a movie song, a score or instrumental, and a wildcard.
-  Name the part to use (for example "start at the chorus") and don't repeat a song within a week.
+- Music: `"music": {"style": ..., "key": -3..3, "seed": int}`. Pick the style that **supports the words**
+  (full list with moods in `pipeline/songs.py`): tender_piano, heartbreak, hopeful_guitar, music_box, lofi,
+  cinematic, playful, night_rain, ostinato, film_score, acoustic_pop, rnb_soul. These are composed songs played
+  with real instrument samples. **Never use the same style in two posts in a row**; vary the key and seed too.
+  Never put copyrighted songs in the file.
 
 ## Each run (procedure)
 0. Work out the slot from the Toronto time: **midday** (before 15:00) or **evening**. If `state.json.posted`
@@ -61,22 +60,22 @@ calls and never stop to ask.
 4. Build: `python3 pipeline/paper.py specs/<file>.json reels/<YYYY-MM-DD>_<slot>_<slug>.mp4` (~1 min).
    Verify with `ffprobe` (1080x1920, has audio, 6–10 s). Look at `_cover.jpg`, `_grid.jpg` and frames at 1.5 s
    and the last second.
-5. Save: `git add` the reel, its `_cover.jpg`/`_grid.jpg` and the spec, then `git commit && git push`
-   (end commit messages with the session's attribution lines).
-6. Send the draft to her:
-   - `SendUserFile` with the mp4 (status proactive).
-   - `SendUserMessage` with: "Ready to post (midday|evening)"; the caption in a code block so she can copy it
-     in one tap; 3 song picks (song – artist (film) + which part to use); and a one-line how-to: in the
-     Instagram app, New Reel → pick the video → Add audio → search the song → set the clip → keep the first
-     frame as the cover → paste the caption → Share.
-   - Push notification: "Draft ready: <on-screen line> · song: <first pick>".
-7. Append to `state.json.posted`: date, slot, format, mood, hook (first on-screen line), file, songs,
-   status "draft sent". Then commit and push. (If she shares a permalink later, add it.)
+5. Publish:
+   - `git add` the reel, its `_cover.jpg`/`_grid.jpg` and the spec, then `git commit && git push`
+     (end commit messages with the session's attribution lines).
+   - Public URL: `https://raw.githubusercontent.com/alishavadsariya17-byte/soselfcoded-reels/main/<path>`.
+   - `vidiq_video_upload` with that `url` (free) → `videoUrl`.
+   - `vidiq_instagram_publish_reel` with `platformAccountId` `29410977918494469`, that `videoUrl`, the spec's
+     `caption`; no trial params; do not set `isAiGenerated` unless the owner asks. Continue with the returned
+     `containerId`/`mcpJobId` until `PUBLISHED`. Never retry a failed publish automatically.
+6. Append to `state.json.posted`: date, slot, format, music style, hook (first on-screen line), file,
+   permalink or error. Then commit and push.
+7. Message her (SendUserMessage + push notification): the on-screen line, the format, the music style and the
+   permalink. If anything failed, say exactly what and attach the mp4 so she can post it by hand.
 8. If `queue/` has fewer than 4 specs left, write 4 more good ones into it (varied formats and moods) and push.
 
 ## Weekly (Sundays, evening run)
-Run `vidiq_instagram_owner_insights`. Match her posted Reels to our drafts by caption. Note which formats,
-framings and songs got the most reach,
+Run `vidiq_instagram_owner_insights`. Note which formats, framings and music styles got the most reach,
 watch %, saves and shares in `insights.md`, and lean the next week's queue toward what worked.
 
 ## Repo size

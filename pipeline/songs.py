@@ -20,6 +20,10 @@ Styles (choose by the feeling of the words):
   cinematic      string section, low piano, timpani                     discipline, strength, comebacks
   playful        pizzicato + marimba + claps                            funny, sassy, light truths
   night_rain     sparse piano + cello + rain                            2am thoughts, overthinking, loneliness
+  ostinato       flowing modern-classical piano figure + cello + violin  deep reflections, book lines, "read this"
+  film_score     piano ostinato + full strings + timpani, big ending      empowerment, comebacks, "you made it"
+  acoustic_pop   strummed guitar, bass, claps, flute hook                 happy, friendship, love, upbeat mornings
+  rnb_soul       neo-soul electric piano, bass, soft groove               confident, sassy, soft-life, self-love
 """
 import glob, os, random, re, subprocess, sys, tempfile
 import numpy as np
@@ -126,7 +130,7 @@ def inst(name):
 MAJ = [0, 2, 4, 5, 7, 9, 11]
 CH = {  # chord name -> (scale degree of root, intervals)
     "I": (0, [0, 4, 7]), "Imaj7": (0, [0, 4, 7, 11]), "Iadd9": (0, [0, 4, 7, 14]),
-    "ii": (1, [0, 3, 7]), "ii7": (1, [0, 3, 7, 10]), "iii": (2, [0, 3, 7]),
+    "ii": (1, [0, 3, 7]), "ii7": (1, [0, 3, 7, 10]), "iii": (2, [0, 3, 7]), "iii7": (2, [0, 3, 7, 10]),
     "IV": (3, [0, 4, 7]), "IVmaj7": (3, [0, 4, 7, 11]), "IVmaj9": (3, [0, 4, 7, 11, 14]),
     "V": (4, [0, 4, 7]), "V7": (4, [0, 4, 7, 10]), "Vsus": (4, [0, 5, 7]),
     "vi": (5, [0, 3, 7]), "vi7": (5, [0, 3, 7, 10]), "vi9": (5, [0, 3, 7, 10, 14]),
@@ -196,6 +200,18 @@ SONGS = {
     "playful": dict(bpm=(84, 112), prog=["I", "IV", "V", "I", "I"], mel=[
         [[(0, .5), (2, .5), (4, .5), (7, .5)], [(5, .5), (3, .5), (5, .5), (3, .5)], [(4, .5), (6, .5), (8, .5), (6, .5)], [(7, .5), (4, .5), (7, 1)], [(7, 1)]],
         [[(4, .5), (2, .5), (4, .5), (7, .5)], [(5, .75), (5, .25), (3, 1)], [(1, .5), (4, .5), (6, .5), (4, .5)], [(2, .5), (1, .5), (0, 1)], [(0, 1)]]]),
+    "ostinato": dict(bpm=(64, 86), prog=["vi", "IV", "I", "V", "vi"], mel=[
+        [[(2, 2)], [(3, 1), (5, 1)], [(4, 1.5), (2, .5)], [(1, 2)], [(0, 2)]],
+        [[(7, 1.5), (6, .5)], [(5, 2)], [(4, 1), (7, 1)], [(6, 2)], [(5, 2)]]]),
+    "film_score": dict(bpm=(60, 80), prog=["vi", "IV", "I", "V", "I"], mel=[
+        [[(2, 1.5), (4, .5)], [(5, 2)], [(4, 1), (7, 1)], [(6, 1), (8, 1)], [(7, 2)]],
+        [[(5, 2)], [(5, 1), (7, 1)], [(7, 1.5), (9, .5)], [(8, 2)], [(7, 2)]]]),
+    "acoustic_pop": dict(bpm=(88, 120), prog=["I", "V", "vi", "IV", "I"], mel=[
+        [[(4, .5), (4, .5), (5, .5), (4, .5)], [(4, .5), (6, .5), (4, 1)], [(2, .5), (2, .5), (4, .5), (2, .5)], [(3, .5), (5, .5), (3, .5), (1, .5)], [(2, 2)]],
+        [[(7, .5), (7, .5), (6, .5), (4, .5)], [(6, 1), (4, 1)], [(5, .5), (4, .5), (2, 1)], [(3, .5), (2, .5), (0, 1)], [(0, 2)]]]),
+    "rnb_soul": dict(bpm=(64, 82), prog=["IVmaj7", "iii7", "vi9", "ii7", "Imaj7"], mel=[
+        [[(5, 1), (4, .5), (2, .5)], [(4, 1.5), (6, .5)], [(4, .5), (2, .5), (0, 1)], [(1, .5), (3, .5), (5, 1)], [(4, 2)]],
+        [[(7, .75), (5, .25), (4, 1)], [(6, .5), (4, .5), (2, 1)], [(2, 1), (4, 1)], [(3, .75), (1, .25), (0, 1)], [(2, 2)]]]),
     "night_rain": dict(bpm=(54, 70), prog=["vi9", "IVmaj9", "Iadd9", "Vsus", "vi"], mel=[
         [[(9, 1.5), (7, .5)], [(5, 2)], [(4, 1), (2, 1)], [(1, 2)], [(2, 2)]],
         [[(4, 1), (2, 1)], [(3, 1.5), (5, .5)], [(4, 2)], [(4, .5), (3, .5), (1, 1)], [(0, 2)]]]),
@@ -288,12 +304,12 @@ def render(out_wav, seconds, style, key=0, seed=1):
     prev = None
     nsl = len(prog)
     for si, cname in enumerate(prog):
-        t0 = si * 2 * beat
+        t0 = si * 2 * beat + (0.12 * beat if si == len(prog) - 1 else 0)  # small ritardando into the last chord
         last = si == nsl - 1
         slot_len = (2 * beat) if not last else ring + 0.6
         root, notes = chord(cname, tonic - 12, base=36)
         vo = voice_lead(prev, notes); prev = vo
-        dyn = [0.85, 0.92, 1.0, 0.95, 0.9, 1.0, 0.95, 0.9][min(si, 7)] if not last else 0.85
+        dyn = [0.97, 0.94, 1.0, 0.95, 0.9, 1.0, 0.95, 0.9][min(si, 7)] if not last else 0.85
         # ---------------- accompaniment
         if style in ("tender_piano", "heartbreak", "night_rain"):
             P = inst("piano")
@@ -311,7 +327,7 @@ def render(out_wav, seconds, style, key=0, seed=1):
             else:
                 for k, n in enumerate(vo[:3]):
                     mx.add("piano", P.render(n, slot_len, V(int(34 * dyn))), t0 + k * 0.06 + H(), 0.1)
-            if style == "tender_piano" and si >= 1:
+            if style == "tender_piano":
                 mx.add("strings", inst("cello").render(root - 12 + 12, slot_len, V(70)), t0, -0.35, 0.55)
             if style == "heartbreak":
                 mx.add("strings", inst("cello").render(root, slot_len, V(78)), t0, -0.4, 0.6)
@@ -352,6 +368,52 @@ def render(out_wav, seconds, style, key=0, seed=1):
             mx.add("piano", inst("piano").render(root, slot_len, V(70)), t0, 0, 0.6)
             if si % 2 == 0 or last:
                 fl_notes.append((9, 41, t0, .5, V(80 if not last else 96))); fl_prog[9] = 0
+        elif style in ("ostinato", "film_score"):
+            P = inst("piano")
+            mx.add("piano", P.render(root, slot_len + 0.3, V(int(64 * dyn))), t0 + H(), -0.2)
+            mx.add("piano", P.render(root + 12, slot_len + 0.3, V(int(48 * dyn))), t0 + H(), -0.15)
+            fig = [root + 12, vo[1], vo[-1], vo[1], vo[0] + 12, vo[1], vo[-1], vo[1]] if not last else [root + 12, vo[1], vo[-1], vo[0] + 12]
+            step = beat / 4 if style == "ostinato" else beat / 2
+            fig = fig if style == "ostinato" else fig[:4]
+            for k, n in enumerate(fig):
+                acc_ = 1.15 if k % 4 == 0 else 1.0
+                mx.add("piano", P.render(n, step * 1.6 if not last else slot_len, V(int(44 * dyn * acc_))), t0 + k * step + H() * .5, 0.2)
+            if True:
+                mx.add("strings", inst("cello").render(root, slot_len, V(int(70 + 4 * si))), t0, -0.35, 0.6)
+            if si >= 2 or last:
+                mx.add("strings", inst("violin").render(vo[-1] + 12, slot_len, V(int(58 + 7 * si))), t0, 0.4, 0.45)
+            if style == "film_score":
+                for n in vo[:3]:
+                    mx.add("strings", inst("violin" if n >= 55 else "cello").render(n + 12, slot_len, V(int(52 + 8 * si))), t0 + 0.03, 0.1, 0.3)
+                if si % 2 == 0 or last:
+                    fl_notes.append((9, 41, t0, .5, V(70 if not last else 100)))
+                    if last:
+                        fl_notes.append((9, 49, t0, 2.0, V(55)))
+                fl_prog[9] = 0
+        elif style == "acoustic_pop":
+            G = inst("guitar")
+            strum = [(0, 1, 78), (.5, -1, 50), (1, 1, 70), (1.5, -1, 56)] if not last else [(0, 1, 82)]
+            shape = [root] + vo
+            for bt_, dirn, vv in strum:
+                notes_ = shape if dirn > 0 else shape[::-1][:3]
+                for i, n in enumerate(notes_):
+                    mx.add("gtr", G.render(n, (beat * .55) if not last else ring, V(int(vv * dyn))), t0 + bt_ * beat + i * 0.014 + H() * .3, -0.3 + 0.12 * i, 0.8)
+            mx.add("bass", inst("bass").render(root - 12, beat * .9 if not last else ring, V(78)), t0, 0, 0.7)
+            if not last:
+                mx.add("bass", inst("bass").render(root - 12 + 7, beat * .8, V(70)), t0 + beat, 0, 0.6)
+                fl_notes += [(9, 39, t0 + beat, .05, V(64)), (9, 36, t0, .1, V(70)), (9, 42, t0 + .5 * beat, .05, V(40)), (9, 42, t0 + 1.5 * beat, .05, V(40))]
+            fl_prog[9] = 0
+        elif style == "rnb_soul":
+            for k, (st_, du_, vv) in enumerate([(0, 1.4, 54), (1.5, .4, 46)] if not last else [(0, 3, 54)]):
+                for i, n in enumerate(vo):
+                    fl_notes.append((0, n, t0 + st_ * beat + 0.012 * i, du_ * beat if not last else ring, V(vv)))
+            fl_notes.append((1, root - 12, t0, 0.9 * beat, V(86)))
+            if not last:
+                fl_notes += [(1, root - 12 + 12, t0 + 1.25 * beat, .2 * beat, V(70)), (1, root - 12 + 10, t0 + 1.5 * beat, .4 * beat, V(72)),
+                             (9, 36, t0, .1, V(80)), (9, 36, t0 + 1.25 * beat, .1, V(60)), (9, 37, t0 + beat, .1, V(72))]
+                for k in range(8):
+                    fl_notes.append((9, 42, t0 + k * beat / 4 + (0.03 if k % 2 else 0), .04, V(30 if k % 2 else 44)))
+            fl_prog.update({0: 4, 1: 33, 9: 0})
         elif style == "playful":
             for k, n in enumerate([root, vo[-1], vo[0], vo[-1]] if not last else [root, vo[0], vo[-1]]):
                 fl_notes.append((0, n if k else n - 12, t0 + k * beat / 2, 0.2, V(78)))
@@ -375,6 +437,13 @@ def render(out_wav, seconds, style, key=0, seed=1):
                 mx.add("lead", inst("piano").render(m + 12, du + 0.3, V(int(58 * dyn))), st, 0.1)
             elif style == "cinematic":
                 mx.add("lead", inst("violin").render(m + 12, du, V(int(86 * dyn))), st, 0.15, 0.8)
+            elif style in ("ostinato", "film_score"):
+                inst_m = "piano" if style == "ostinato" else "violin"
+                mx.add("lead", inst(inst_m).render(m + 12, du + (0.3 if inst_m == "piano" else 0), V(int((72 if inst_m == "piano" else 84) * dyn))), st, 0.05, 1.0 if inst_m == "piano" else 0.75)
+            elif style == "acoustic_pop":
+                mx.add("lead", inst("flute").render(m + 12, du, V(int(70 * dyn))), st, 0.15, 0.55)
+            elif style == "rnb_soul":
+                mx.add("lead", inst("piano").render(m + 12, du + 0.3, V(int(62 * dyn))), st, 0.1)
             elif style == "playful":
                 fl_notes.append((2, m + 12, st, min(du, 0.25), vm)); fl_prog[2] = 12
             bt += b
@@ -382,7 +451,7 @@ def render(out_wav, seconds, style, key=0, seed=1):
     total = mx.n
     out = np.zeros((2, total), np.float32)
     rev = {"piano": .32, "lead": .38, "strings": .45, "gtr": .25, "bass": .1, "harp": .4, "fluid": .2}
-    irs = reverb_ir(2.6 if style in ("heartbreak", "night_rain", "cinematic", "music_box") else 1.8, 5000, seed)
+    irs = reverb_ir(2.6 if style in ("heartbreak", "night_rain", "cinematic", "music_box", "ostinato", "film_score") else 1.8, 5000, seed)
     wet = np.zeros_like(out)
     for name, b in mx.bus.items():
         out += b
