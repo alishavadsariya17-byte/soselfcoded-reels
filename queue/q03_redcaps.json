@@ -40,7 +40,7 @@
   }
  ],
  "music": {
-  "style": "acoustic_pop",
+  "mood": "bold",
   "key": 2,
   "seed": 14
  },

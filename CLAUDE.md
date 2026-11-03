@@ -41,11 +41,25 @@ asks for drafts again.)
   profile grid stays beautiful. Keep all text inside the middle 3:4 area (y 240–1680) so the grid crop never
   cuts it. Check the `_grid.jpg` that each build writes. The profile should read as one calm aesthetic: soft
   neutrals with the occasional deep colour (maroon, coffee black).
-- Music: `"music": {"style": ..., "key": -3..3, "seed": int}`. Pick the style that **supports the words**
-  (full list with moods in `pipeline/songs.py`): tender_piano, heartbreak, hopeful_guitar, music_box, lofi,
-  cinematic, playful, night_rain, ostinato, film_score, acoustic_pop, rnb_soul. These are composed songs played
-  with real instrument samples. **Never use the same style in two posts in a row**; vary the key and seed too.
-  Never put copyrighted songs in the file.
+- Music: **read the words and decide their tone, then set `"music": {"mood": <tone>, "key": -3..3, "seed": int}`.**
+  `pipeline/songs.py` maps each tone to a composed track played with real instruments:
+  - discipline / serious / grind → film_dark (driving ostinato, war drums, minor)
+  - bold / empowering / confident → film_bold (pulsing strings, horns, big drums)
+  - uplifting / hopeful / proud → film_score (piano + full strings + timpani). Alisha's favourite.
+  - healing / gentle / self-love → film_tender
+  - reflective / deep → ostinato
+  - heartbreak / letting-go / sad → heartbreak
+  - 2am / lonely → night_rain
+  - nostalgic → music_box
+  - chill / coffee / relatable → lofi
+  - love / friendship / happy → acoustic_pop
+  - sassy / soft-life → rnb_soul
+  - funny → playful
+  Lean toward the film-score family whenever the words allow, because she liked it best. A specific `"style"`
+  can still be set to override the tone. If a spec has no music entry, `paper.py` guesses the tone from the
+  text, but deciding it yourself is better. The build prints `music: <tone>`, so check it fits. Don't use the
+  same track style in two posts in a row unless the words clearly need it; always vary the key and seed. Never
+  put copyrighted songs in the file.
 
 ## Each run (procedure)
 0. Work out the slot from the Toronto time: **midday** (before 15:00) or **evening**. If `state.json.posted`

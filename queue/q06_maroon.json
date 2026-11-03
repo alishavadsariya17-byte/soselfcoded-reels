@@ -42,7 +42,7 @@
   }
  ],
  "music": {
-  "style": "playful",
+  "mood": "funny",
   "key": 3,
   "seed": 2
  },

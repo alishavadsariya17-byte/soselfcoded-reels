@@ -254,6 +254,32 @@ def render_text(s):
     return out
 
 
+MOOD_WORDS = [  # fallback when a spec gives no music mood: read the words and match the tone
+    ("discipline", "discipline,consistent,consistency,nobody is coming,show up,5am,routine,habit,grind,goals,excuses,"
+                   "lazy,alarm,effort,sacrifice,focus,no one is coming,do the work"),
+    ("bold", "stop shrinking,take up space,worth,deserve,queen,power,bold,confident,never again,standards,outgrow,"
+             "outgrown,fearless,too expensive,choose yourself"),
+    ("heartbreak", "leave,left,gone,goodbye,doors,door,apology,closure,miss you,letting go,let go,breaking you,broke you,"
+                   "move on,moving on,heartbreak"),
+    ("2am", "2am,overthink,overthinking,can't sleep,lonely,alone,pretending,fall apart,strong friend"),
+    ("funny", "love language,nap,lol,surviving all day,snack,bestie,funny"),
+    ("chill", "coffee,before your day,slow morning,nobody gets to time"),
+    ("love", "friendship,best friend,the person who,romantic,listening"),
+    ("healing", "rest,resting,gentle,soft reminder,healing,heal,allowed,it's okay,kind person,say no,progress"),
+]
+
+
+def guess_mood(s):
+    import re
+    text = " ".join(b.get("text", "") for b in s.get("blocks", [])).lower() + " " + s.get("caption", "").lower()
+    best, score = "reflective", 0
+    for mood, words in MOOD_WORDS:
+        sc = sum(len(re.findall(r"\b" + re.escape(w) + r"\b", text)) for w in words.split(","))
+        if sc > score:
+            best, score = mood, sc
+    return best
+
+
 def build(spec_path, out):
     s = json.load(open(spec_path))
     rng = np.random.default_rng(s.get("seed", 4))
@@ -348,8 +374,10 @@ def build(spec_path, out):
     if s.get("silent"):  # song-ready draft: Alisha adds a song from Instagram's library in the app
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", str(total), wav],
                        check=True)
-    elif mu.get("style"):
-        subprocess.run([sys.executable, os.path.join(HERE, "songs.py"), wav, str(total), mu["style"],
+    elif mu.get("style") or mu.get("mood") or True:
+        style = mu.get("style") or mu.get("mood") or guess_mood(s)
+        print("music:", style)
+        subprocess.run([sys.executable, os.path.join(HERE, "songs.py"), wav, str(total), style,
                         str(mu.get("key", 0)), str(mu.get("seed", 1))], check=True, stdout=subprocess.DEVNULL)
     else:
         subprocess.run([sys.executable, os.path.join(HERE, "lofi.py"), wav, str(total), mu.get("mood", "dreamy"),

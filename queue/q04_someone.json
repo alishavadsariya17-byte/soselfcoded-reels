@@ -38,7 +38,7 @@
   }
  ],
  "music": {
-  "style": "heartbreak",
+  "mood": "heartbreak",
   "key": 1,
   "seed": 23
  },
