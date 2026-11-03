@@ -1,231 +1,433 @@
-"""Song-like background tracks with real instrument sounds (FluidR3 GM soundfont, MIT licence) via fluidsynth.
-Each style is a small arranged piece (intro-less, starts on the hook) with a melody, chords, bass and
-optional drums, so it feels like a song that supports the words rather than a loop of chords.
+"""Composed, sample-based background music for the quote Reels (no voiceover).
 
-Usage: python3 pipeline/songs.py out.wav seconds style [key] [seed]
-Styles (pick to match the words):
-  tender_piano   - soft hopeful piano ballad + cello + strings      (self-love, gentle reminders)
-  heartbreak     - slow minor piano + strings, sad but warm          (letting go, loss, people leaving)
-  hopeful_guitar - fingerpicked nylon guitar + light glockenspiel     (new chapters, growth, mornings)
-  music_box      - music box + harp + pad, nostalgic lullaby          (inner child, healing, softness)
-  lofi           - electric piano, bass, laid-back drums, vinyl       (relatable, everyday, coffee, chill)
-  cinematic      - strings swell + low piano + timpani                (discipline, strength, comeback)
-  playful        - pizzicato + marimba + claps                        (funny, light, sassy truths)
-  night_rain     - rhodes + warm pad + soft rain noise, slow          (2am thoughts, overthinking, loneliness)
+Real recorded instruments: Salamander Grand Piano (3 velocity layers), cello, violin, harp, nylon and
+steel guitar, flute, contrabass (tonejs-instruments). FluidR3 GM via fluidsynth is used for the extra
+colours (electric piano, music box, pizzicato, marimba, drums). The samples are fetched by
+pipeline/setup.sh into .samples/ (not committed). The sample packages are MIT; credits are in README.md.
+
+Every track is a short composed song cut to fit the Reel: 4 chord "slots" (2 beats each) that form a
+complete phrase (question -> answer), then a final chord that rings out and resolves. The tempo is fitted
+so the phrase lands exactly on the Reel length, and the melody is hand-written per style (several
+variations each), so it sounds like music with a hook, not a random loop.
+
+Usage: python3 pipeline/songs.py out.wav seconds style [key -3..3] [seed]
+Styles (choose by the feeling of the words):
+  tender_piano   gentle hopeful piano ballad, cello enters later        self-love, soft reminders
+  heartbreak     minor piano + cello + violin swell                     letting go, people leaving, closure
+  hopeful_guitar fingerpicked nylon guitar + flute melody               growth, new chapters, mornings
+  music_box      harp + music box lullaby                               inner child, healing, nostalgia
+  lofi           electric piano, soft piano melody, bass, drums, vinyl  relatable, coffee, everyday
+  cinematic      string section, low piano, timpani                     discipline, strength, comebacks
+  playful        pizzicato + marimba + claps                            funny, sassy, light truths
+  night_rain     sparse piano + cello + rain                            2am thoughts, overthinking, loneliness
 """
-import os, subprocess, sys, tempfile, random
-import mido
+import glob, os, random, re, subprocess, sys, tempfile
+import numpy as np
+from scipy.signal import butter, sosfilt, fftconvolve
 
-SF = "/usr/share/sounds/sf2/FluidR3_GM.sf2"
-TPB = 480
+HERE = os.path.dirname(os.path.abspath(__file__))
+SAMPLES = os.path.join(os.path.dirname(HERE), ".samples")
+SR = 44100
+SF2 = "/usr/share/sounds/sf2/FluidR3_GM.sf2"
 
-# chord = (root midi note in octave 4 region, quality)
-Q = {"maj": [0, 4, 7], "min": [0, 3, 7], "maj7": [0, 4, 7, 11], "min7": [0, 3, 7, 10], "dom7": [0, 4, 7, 10],
-     "add9": [0, 4, 7, 14], "sus2": [0, 2, 7], "min9": [0, 3, 7, 10, 14], "maj9": [0, 4, 7, 11, 14]}
+# --------------------------------------------------------------------------- sample loading
+NOTE = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 
-STYLES = {
-    "tender_piano":   dict(bpm=72, prog=[(60, "add9"), (55, "maj"), (57, "min7"), (53, "maj7")],
-                           inst={"chords": 0, "melody": 0, "bass": 42, "pad": 49}, pattern="arp8", drums=None, swing=0),
-    "heartbreak":     dict(bpm=66, prog=[(57, "min"), (53, "maj7"), (60, "maj"), (55, "sus2")],
-                           inst={"chords": 0, "melody": 0, "bass": 42, "pad": 49}, pattern="arp_slow", drums=None, swing=0),
-    "hopeful_guitar": dict(bpm=92, prog=[(60, "maj"), (57, "min7"), (53, "maj7"), (55, "maj")],
-                           inst={"chords": 24, "melody": 9, "bass": 32, "pad": 89}, pattern="travis", drums="shaker", swing=0),
-    "music_box":      dict(bpm=84, prog=[(60, "maj"), (64, "min"), (53, "maj"), (55, "maj")],
-                           inst={"chords": 46, "melody": 10, "bass": 46, "pad": 89}, pattern="arp8", drums=None, swing=0),
-    "lofi":           dict(bpm=80, prog=[(62, "min9"), (55, "dom7"), (60, "maj7"), (57, "min7")],
-                           inst={"chords": 4, "melody": 11, "bass": 33, "pad": None}, pattern="block_lofi", drums="lofi", swing=0.12),
-    "cinematic":      dict(bpm=70, prog=[(57, "min"), (53, "maj"), (60, "maj"), (55, "maj")],
-                           inst={"chords": 48, "melody": 48, "bass": 0, "pad": 49}, pattern="swell", drums="timpani", swing=0),
-    "playful":        dict(bpm=108, prog=[(60, "maj"), (65, "maj"), (55, "maj"), (60, "maj")],
-                           inst={"chords": 45, "melody": 12, "bass": 45, "pad": None}, pattern="pizz", drums="claps", swing=0),
-    "night_rain":     dict(bpm=64, prog=[(57, "min9"), (53, "maj9"), (55, "add9"), (52, "min7")],
-                           inst={"chords": 4, "melody": 4, "bass": 32, "pad": 89}, pattern="block_slow", drums=None, swing=0),
+
+def name_to_midi(n):
+    m = re.match(r"^([A-G])(s|#)?(-?\d)$", n)
+    if not m:
+        return None
+    return 12 * (int(m.group(3)) + 1) + NOTE[m.group(1)] + (1 if m.group(2) else 0)
+
+
+def decode(path):
+    cache = os.path.join(SAMPLES, "cache", re.sub(r"[^A-Za-z0-9_.-]", "_", os.path.relpath(path, SAMPLES)) + ".npy")
+    if os.path.exists(cache):
+        return np.load(cache)
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"],
+                         capture_output=True, check=True).stdout
+    a = np.frombuffer(raw, np.float32).copy()
+    nz = np.nonzero(np.abs(a) > 0.002)[0]
+    if len(nz):
+        a = a[max(0, nz[0] - 30):]  # trim encoder silence, keep the attack
+    os.makedirs(os.path.dirname(cache), exist_ok=True)
+    np.save(cache, a)
+    return a
+
+
+class Instrument:
+    def __init__(self, folder_glob, layer=None, max_len=None, release=0.35, attack=0.0):
+        self.layers = {}  # layer -> {midi: path}
+        for d in glob.glob(os.path.join(SAMPLES, "dl", folder_glob)):
+            for f in glob.glob(os.path.join(d, "**", "*.mp3"), recursive=True):
+                base = os.path.basename(f)[:-4]
+                if " " in base:
+                    continue
+                m = re.match(r"^(.+?)v(\d+)$", base)
+                lay, nm = (int(m.group(2)), m.group(1)) if m else (0, base)
+                mi = name_to_midi(nm)
+                if mi is not None:
+                    self.layers.setdefault(lay, {})[mi] = f
+        if not self.layers:
+            raise RuntimeError(f"no samples for {folder_glob}; run pipeline/setup.sh")
+        self.keys = sorted(self.layers)
+        self.max_len, self.release, self.attack = max_len, release, attack
+        self._cache = {}
+
+    def sample(self, midi, vel):
+        lay = self.keys[min(len(self.keys) - 1, int(vel / 128 * len(self.keys)))]
+        notes = self.layers[lay]
+        src = min(notes, key=lambda n: (abs(n - midi), n > midi))
+        key = (lay, src)
+        if key not in self._cache:
+            self._cache[key] = decode(notes[src])
+        return self._cache[key], src
+
+    def render(self, midi, dur, vel):
+        a, src = self.sample(midi, vel)
+        ratio = 2 ** ((midi - src) / 12)
+        n_out = int(min(len(a) / ratio, (dur + self.release + 0.05) * SR))
+        if self.max_len:
+            n_out = min(n_out, int(self.max_len * SR))
+        idx = np.arange(n_out) * ratio
+        out = np.interp(idx, np.arange(len(a)), a).astype(np.float32)
+        env = np.ones(n_out, np.float32)
+        r0 = int(dur * SR)
+        if r0 < n_out:
+            rl = n_out - r0
+            env[r0:] = np.exp(-np.linspace(0, 6, rl))
+        if self.attack:
+            na = min(n_out, int(self.attack * SR))
+            env[:na] *= np.linspace(0, 1, na) ** 1.5
+        return out * env * (vel / 127) ** 1.6
+
+
+_INST = {}
+
+
+def inst(name):
+    if name not in _INST:
+        spec = {
+            "piano": ("audio-samples-piano-mp3-velocity*", dict(release=0.45)),
+            "cello": ("tonejs-instrument-cello-mp3*", dict(release=0.5, attack=0.18)),
+            "violin": ("tonejs-instrument-violin-mp3*", dict(release=0.6, attack=0.25)),
+            "harp": ("tonejs-instrument-harp-mp3*", dict(release=1.2)),
+            "nylon": ("tonejs-instrument-guitar-nylon-mp3*", dict(release=0.6)),
+            "guitar": ("tonejs-instrument-guitar-acoustic-mp3*", dict(release=0.6)),
+            "flute": ("tonejs-instrument-flute-mp3*", dict(release=0.25, attack=0.06)),
+            "bass": ("tonejs-instrument-contrabass-mp3*", dict(release=0.3, attack=0.03)),
+        }[name]
+        _INST[name] = Instrument(spec[0], **spec[1])
+    return _INST[name]
+
+
+# --------------------------------------------------------------------------- harmony
+MAJ = [0, 2, 4, 5, 7, 9, 11]
+CH = {  # chord name -> (scale degree of root, intervals)
+    "I": (0, [0, 4, 7]), "Imaj7": (0, [0, 4, 7, 11]), "Iadd9": (0, [0, 4, 7, 14]),
+    "ii": (1, [0, 3, 7]), "ii7": (1, [0, 3, 7, 10]), "iii": (2, [0, 3, 7]),
+    "IV": (3, [0, 4, 7]), "IVmaj7": (3, [0, 4, 7, 11]), "IVmaj9": (3, [0, 4, 7, 11, 14]),
+    "V": (4, [0, 4, 7]), "V7": (4, [0, 4, 7, 10]), "Vsus": (4, [0, 5, 7]),
+    "vi": (5, [0, 3, 7]), "vi7": (5, [0, 3, 7, 10]), "vi9": (5, [0, 3, 7, 10, 14]),
 }
 
 
-class Song:
-    def __init__(self, bpm):
-        self.mid = mido.MidiFile(ticks_per_beat=TPB)
-        self.ev = {}  # ch -> list of (tick, msg)
-        self.bpm = bpm
-
-    def prog(self, ch, program, vol=100, reverb=70, chorus=10, pan=64):
-        e = self.ev.setdefault(ch, [])
-        if program is not None and ch != 9:
-            e.append((0, mido.Message("program_change", channel=ch, program=program)))
-        for cc, v in ((7, vol), (91, reverb), (93, chorus), (10, pan)):
-            e.append((0, mido.Message("control_change", channel=ch, control=cc, value=v)))
-
-    def note(self, ch, n, beat, dur, vel, rng, jitter=0.02):
-        t0 = max(0, int((beat + rng.uniform(-jitter, jitter)) * TPB))
-        t1 = t0 + max(10, int(dur * TPB))
-        vel = int(max(1, min(127, vel + rng.randint(-7, 7))))
-        e = self.ev.setdefault(ch, [])
-        e.append((t0, mido.Message("note_on", channel=ch, note=int(n), velocity=vel)))
-        e.append((t1, mido.Message("note_off", channel=ch, note=int(n), velocity=0)))
-
-    def cc(self, ch, beat, ctl, val):
-        self.ev.setdefault(ch, []).append((int(beat * TPB), mido.Message("control_change", channel=ch, control=ctl, value=int(val))))
-
-    def save(self, path):
-        tr = mido.MidiTrack(); self.mid.tracks.append(tr)
-        tr.append(mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(self.bpm)))
-        allev = sorted([x for v in self.ev.values() for x in v], key=lambda x: (x[0], 0 if x[1].type != "note_on" else 1))
-        last = 0
-        for t, m in allev:
-            tr.append(m.copy(time=t - last)); last = t
-        self.mid.save(path)
+def deg(d, tonic):
+    """Scale degree (0 = tonic, 7 = octave, negatives below) -> midi."""
+    o, r = divmod(d, 7)
+    return tonic + 12 * o + MAJ[r]
 
 
-def chord_notes(root, q, key):
-    return [root + key + i for i in Q[q]]
+def chord(name, tonic, base=48):
+    r, iv = CH[name]
+    root = tonic + MAJ[r]
+    while root < base:
+        root += 12
+    while root >= base + 12:
+        root -= 12
+    return root, [root + i for i in iv]
 
 
-def make_motif(rng, bars=2):
-    """Rhythm (beats) + scale-degree steps for a 2-bar singable motif."""
-    rhythms = [[1, .5, .5, 1, 1], [1.5, .5, 1, 1], [.5, .5, 1, 1, 1], [1, 1, 1.5, .5], [2, .5, .5, 1]]
-    r1, r2 = rng.choice(rhythms), rng.choice(rhythms)
-    contour = [rng.choice([-2, -1, 0, 1, 2]) for _ in range(len(r1) + len(r2))]
-    return [r1, r2], contour
+def voice_lead(prev, notes, lo=55, hi=72):
+    """Choose an inversion of `notes` (pitch classes) close to the previous voicing."""
+    pcs = sorted(set(n % 12 for n in notes))
+    best, bestc = None, 1e9
+    for inv in range(len(pcs)):
+        for octv in (48, 60):
+            v = []
+            for i in range(len(pcs)):
+                n = octv + pcs[(i + inv) % len(pcs)]
+                while v and n <= v[-1]:
+                    n += 12
+                v.append(n)
+            if v[0] < lo or v[-1] > hi + 7:
+                continue
+            c = sum(abs(a - b) for a, b in zip(sorted(v), sorted(prev))) if prev else abs(sum(v) / len(v) - 62)
+            if c < bestc:
+                best, bestc = v, c
+    return best or [60 + p for p in pcs]
 
 
-def scale_for(key, minor):
-    base = [0, 2, 4, 5, 7, 9, 11]
-    return base
+# --------------------------------------------------------------------------- songs
+# Progression = 4 slots + final ringing chord. Melodies: per slot list of (scale degree, beats), 2 beats per slot,
+# plus the final note. Strong beats sit on chord tones; phrase = question (slots 1-2) and answer (3-4).
+SONGS = {
+    "tender_piano": dict(bpm=(60, 84), prog=["Iadd9", "V", "vi", "IV", "I"], mel=[
+        [[(2, .5), (4, .5), (7, 1)], [(6, 1), (4, 1)], [(5, .5), (4, .5), (2, 1)], [(3, 1), (1, .5), (2, .5)], [(0, 2)]],
+        [[(4, 1.5), (5, .5)], [(4, 1), (1, 1)], [(2, 1.5), (4, .5)], [(5, 1), (3, 1)], [(2, 2)]],
+        [[(7, 1), (6, .5), (7, .5)], [(8, 1), (6, 1)], [(7, .5), (6, .5), (4, 1)], [(5, .5), (3, .5), (5, 1)], [(4, 2)]]]),
+    "heartbreak": dict(bpm=(56, 78), prog=["vi", "IV", "I", "V", "vi"], mel=[
+        [[(7, 1), (6, .5), (5, .5)], [(5, 1), (3, 1)], [(4, 1.5), (2, .5)], [(1, .5), (2, .5), (4, 1)], [(5, 2)]],
+        [[(2, 1), (4, .5), (2, .5)], [(3, 1.5), (2, .5)], [(0, 1), (2, 1)], [(1, 1), (-1, 1)], [(-2, 2)]],
+        [[(5, 1.5), (7, .5)], [(7, 1), (5, 1)], [(4, 1.5), (2, .5)], [(4, .5), (6, .5), (8, 1)], [(7, 2)]]]),
+    "hopeful_guitar": dict(bpm=(70, 96), prog=["I", "IV", "vi", "V", "I"], mel=[
+        [[(4, .5), (4, .5), (2, .5), (4, .5)], [(5, 1), (3, .5), (5, .5)], [(2, 1), (0, 1)], [(1, .5), (2, .5), (1, 1)], [(0, 2)]],
+        [[(7, .5), (6, .5), (4, 1)], [(5, .5), (7, .5), (5, 1)], [(4, .5), (2, .5), (4, 1)], [(1, 1.5), (2, .5)], [(2, 2)]]]),
+    "music_box": dict(bpm=(66, 90), prog=["I", "iii", "IV", "V", "I"], mel=[
+        [[(7, .5), (4, .5), (2, .5), (4, .5)], [(6, .5), (4, .5), (2, 1)], [(5, .5), (3, .5), (7, 1)], [(6, .5), (8, .5), (4, 1)], [(7, 2)]],
+        [[(9, 1), (7, 1)], [(6, .5), (4, .5), (6, 1)], [(5, 1), (7, 1)], [(8, .5), (6, .5), (4, 1)], [(7, 2)]]]),
+    "lofi": dict(bpm=(68, 88), prog=["ii7", "V7", "Imaj7", "vi7", "Imaj7"], mel=[
+        [[(5, .75), (3, .25), (1, 1)], [(3, .5), (1, .5), (-1, 1)], [(2, 1.5), (6, .5)], [(4, 1), (2, 1)], [(6, 2)]],
+        [[(7, .5), (5, .5), (3, 1)], [(3, .75), (4, .25), (6, 1)], [(4, 1), (2, 1)], [(4, .5), (5, .5), (2, 1)], [(2, 2)]]]),
+    "cinematic": dict(bpm=(56, 76), prog=["vi", "IV", "I", "V", "vi"], mel=[
+        [[(2, 2)], [(3, 1), (5, 1)], [(4, 2)], [(6, 1), (8, 1)], [(7, 2)]],
+        [[(5, 1.5), (4, .5)], [(5, 2)], [(7, 1.5), (6, .5)], [(6, 1), (4, 1)], [(5, 2)]]]),
+    "playful": dict(bpm=(84, 112), prog=["I", "IV", "V", "I", "I"], mel=[
+        [[(0, .5), (2, .5), (4, .5), (7, .5)], [(5, .5), (3, .5), (5, .5), (3, .5)], [(4, .5), (6, .5), (8, .5), (6, .5)], [(7, .5), (4, .5), (7, 1)], [(7, 1)]],
+        [[(4, .5), (2, .5), (4, .5), (7, .5)], [(5, .75), (5, .25), (3, 1)], [(1, .5), (4, .5), (6, .5), (4, .5)], [(2, .5), (1, .5), (0, 1)], [(0, 1)]]]),
+    "night_rain": dict(bpm=(54, 70), prog=["vi9", "IVmaj9", "Iadd9", "Vsus", "vi"], mel=[
+        [[(9, 1.5), (7, .5)], [(5, 2)], [(4, 1), (2, 1)], [(1, 2)], [(2, 2)]],
+        [[(4, 1), (2, 1)], [(3, 1.5), (5, .5)], [(4, 2)], [(4, .5), (3, .5), (1, 1)], [(0, 2)]]]),
+}
 
 
-def nearest_scale(n, key):
-    sc = [0, 2, 4, 5, 7, 9, 11]
-    while (n - key) % 12 not in sc:
-        n += 1
-    return n
+def reverb_ir(secs, damp, seed):
+    rng = np.random.default_rng(seed)
+    n = int(secs * SR)
+    t = np.arange(n) / SR
+    irs = []
+    for ch in range(2):
+        x = rng.standard_normal(n) * np.exp(-t * 6.5 / secs)
+        x = sosfilt(butter(1, damp, "low", fs=SR, output="sos"), x)
+        x[:int(0.012 * SR)] *= np.linspace(0, 1, int(0.012 * SR))
+        irs.append(x / np.sqrt(np.sum(x ** 2)))
+    return irs
+
+
+class Mix:
+    def __init__(self, seconds):
+        self.n = int((seconds + 4) * SR)
+        self.bus = {}
+
+    def add(self, busname, audio, t, pan=0.0, gain=1.0):
+        b = self.bus.setdefault(busname, np.zeros((2, self.n), np.float32))
+        i = int(t * SR)
+        if i >= self.n or i < 0:
+            return
+        j = min(self.n, i + len(audio))
+        l, r = np.cos((pan + 1) * np.pi / 4), np.sin((pan + 1) * np.pi / 4)
+        b[0, i:j] += audio[:j - i] * gain * l * 1.41
+        b[1, i:j] += audio[:j - i] * gain * r * 1.41
+
+
+def fluid_stem(notes, programs, seconds, bpm):
+    """Render notes [(ch, midi, start_s, dur_s, vel)] with FluidR3; returns stereo array."""
+    import mido
+    mf = mido.MidiFile(ticks_per_beat=480)
+    tr = mido.MidiTrack(); mf.tracks.append(tr)
+    tempo = mido.bpm2tempo(120)
+    tr.append(mido.MetaMessage("set_tempo", tempo=tempo))
+    ev = []
+    for ch, prog in programs.items():
+        if ch != 9:
+            ev.append((0, mido.Message("program_change", channel=ch, program=prog)))
+        ev.append((0, mido.Message("control_change", channel=ch, control=91, value=30)))
+    tick = lambda s: int(s * 960)
+    for ch, m, st, du, v in notes:
+        ev.append((tick(st), mido.Message("note_on", channel=ch, note=int(m), velocity=int(max(1, min(127, v))))))
+        ev.append((tick(st + du), mido.Message("note_off", channel=ch, note=int(m), velocity=0)))
+    ev.sort(key=lambda e: (e[0], e[1].type == "note_on"))
+    last = 0
+    for t, msg in ev:
+        tr.append(msg.copy(time=t - last)); last = t
+    wk = tempfile.mkdtemp()
+    mid, wav = os.path.join(wk, "f.mid"), os.path.join(wk, "f.wav")
+    mf.save(mid)
+    subprocess.run(["fluidsynth", "-ni", "-q", "-g", "0.6", "-r", str(SR), "-F", wav, SF2, mid], check=True,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", wav, "-f", "f32le", "-ac", "2", "-ar", str(SR), "-"],
+                         capture_output=True, check=True).stdout
+    return np.frombuffer(raw, np.float32).reshape(-1, 2).T.copy()
 
 
 def render(out_wav, seconds, style, key=0, seed=1):
-    S = STYLES[style]
+    S = SONGS[style]
     rng = random.Random(seed)
-    bpm = S["bpm"]
-    beats_total = seconds * bpm / 60 + 4
-    bar = 4
-    song = Song(bpm)
-    I = S["inst"]
-    song.prog(0, I["chords"], vol=92, reverb=80, chorus=20, pan=58)
-    song.prog(1, I["melody"], vol=100, reverb=85, chorus=15, pan=70)
-    song.prog(2, I["bass"], vol=82, reverb=50, pan=64)
-    if I.get("pad") is not None:
-        song.prog(3, I["pad"], vol=58, reverb=100, chorus=40, pan=64)
-    song.prog(9, None, vol=78, reverb=40)
-    prog = S["prog"][:]
-    rot = rng.randint(0, 3) if style not in ("cinematic", "heartbreak") else 0
-    prog = prog[rot:] + prog[:rot]
-    rhythm, contour = make_motif(rng)
-    nbars = int(beats_total // bar) + 1
-    sw = S["swing"]
-    mel_hi = 72
-    for b in range(nbars):
-        root, q = prog[b % len(prog)]
-        cn = chord_notes(root, q, key)
-        bb = b * bar
-        intensity = min(1.0, 0.75 + 0.08 * b)  # gently builds
-        p = S["pattern"]
-        # ---- chords
-        if p == "arp8":
-            order = [0, 1, 2, 3 % len(cn), 2, 1, 0, 2] if len(cn) > 3 else [0, 1, 2, 1, 0, 1, 2, 1]
-            for k in range(8):
-                n = cn[order[k] % len(cn)] - 12 + (12 if k in (3, 4) else 0)
-                song.note(0, n, bb + k * .5, .9, 58 * intensity + (8 if k == 0 else 0), rng)
-        elif p == "arp_slow":
-            for k, i in enumerate([0, 2, 1, 2]):
-                song.note(0, cn[i % len(cn)] - 12 + (12 if k == 2 else 0), bb + k, 1.8, 54 * intensity, rng)
-        elif p == "travis":
-            for k in range(8):
-                n = (cn[0] - 12) if k % 2 == 0 else cn[[1, 2, 1, 2][k // 2 % 4] % len(cn)]
-                song.note(0, n, bb + k * .5, .8, (62 if k % 2 == 0 else 50) * intensity, rng, 0.015)
-        elif p == "block_lofi":
-            for st, d in ((0, 1.6), (2 + sw, 0.9), (3.5 + sw, 0.4)):
-                for i, n in enumerate(cn):
-                    song.note(0, n - 12, bb + st + i * 0.012, d, 50, rng, 0.01)
-        elif p == "block_slow":
-            for i, n in enumerate(cn):
-                song.note(0, n - 12, bb + i * 0.03, 3.8, 48, rng, 0.01)
-        elif p == "swell":
-            for i, n in enumerate(cn[:3]):
-                song.note(0, n - 12, bb, 4.0, 60 * intensity, rng, 0)
-            song.cc(0, bb, 11, 50); song.cc(0, bb + 1.5, 11, 110); song.cc(0, bb + 3.6, 11, 70)
-        elif p == "pizz":
-            for k in range(4):
-                song.note(0, cn[[0, 2, 1, 2][k] % len(cn)], bb + k + .5, .3, 64, rng, 0.01)
-        # ---- bass
-        bass = cn[0] - 24
-        if p in ("pizz", "travis"):
-            song.note(2, bass, bb, .9, 70, rng); song.note(2, bass + 7, bb + 2, .9, 62, rng)
-        elif p == "block_lofi":
-            song.note(2, bass, bb, 1.4, 78, rng); song.note(2, bass, bb + 2.5 + sw, .5, 64, rng); song.note(2, bass + 7, bb + 3 + sw, .8, 60, rng)
-        elif p == "swell":
-            song.note(2, bass, bb, 3.9, 70, rng); song.note(2, bass - 12 if bass - 12 > 24 else bass, bb, 3.9, 62, rng)
-        else:
-            song.note(2, bass, bb, 3.9, 64, rng)
-        # ---- pad
-        if I.get("pad") is not None:
-            for n in cn[:3]:
-                song.note(3, n, bb, 4.0, 46, rng, 0)
-        # ---- melody: motif (2 bars), answered with variation
-        half = b % 2
-        rh = rhythm[half]
-        cpos = 0
-        prev = nearest_scale(mel_hi + key + (cn[0] - 60) % 12 - (12 if (cn[0] - 60) % 12 > 6 else 0), key)
-        for k, d in enumerate(rh):
-            step = contour[(k + half * len(rhythm[0])) % len(contour)]
-            if b % 4 >= 2 and k == len(rh) - 1:
-                step = -abs(step) - 1  # answer phrase resolves downward
-            target = prev + step * 2
-            # pull strong beats onto chord tones
-            if cpos in (0, 2):
-                pcs = [(n - target) % 12 for n in cn]
-                best = min(cn, key=lambda n: min(abs((n % 12) - (target % 12)), 12 - abs((n % 12) - (target % 12))))
-                target = target + (((best % 12) - (target % 12) + 6) % 12 - 6)
-            target = nearest_scale(target, key)
-            target = max(mel_hi - 7 + key, min(mel_hi + 9 + key, target))
-            if p == "pizz" or style == "music_box" or rng.random() > 0.08:
-                song.note(1, target, bb + cpos + (sw if cpos % 1 else 0), d * 0.92, 70 + (8 if cpos == 0 else 0), rng)
-            prev = target
-            cpos += d
-            if cpos >= 4: break
-        # ---- drums
-        dr = S["drums"]
-        if dr == "lofi":
-            for q4 in range(4):
-                if q4 in (0,) or (q4 == 2 and b % 2): song.note(9, 36, bb + q4 + (0.5 if q4 == 2 else 0), .2, 82, rng, 0.01)
-                if q4 in (1, 3): song.note(9, 37, bb + q4, .2, 70, rng, 0.01)
-                for e in (0, .5 + sw):
-                    song.note(9, 42, bb + q4 + e, .1, 44 if e else 54, rng, 0.01)
-        elif dr == "shaker":
-            for k in range(8):
-                song.note(9, 70, bb + k * .5, .1, 36 if k % 2 else 48, rng, 0.01)
-        elif dr == "claps" and b >= 1:
-            song.note(9, 39, bb + 1, .1, 64, rng); song.note(9, 39, bb + 3, .1, 64, rng)
-            for k in range(4): song.note(9, 42, bb + k + .5, .1, 40, rng)
-        elif dr == "timpani" and b % 2 == 0:
-            song.note(9, 41, bb, 1, 70, rng); song.note(9, 41, bb + 3.5, .5, 50, rng)
-    wk = tempfile.mkdtemp()
-    mid = os.path.join(wk, "s.mid"); raw = os.path.join(wk, "raw.wav")
-    song.save(mid)
-    subprocess.run(["fluidsynth", "-ni", "-q", "-g", "0.55", "-r", "44100", "-F", raw, SF, mid], check=True,
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    af = [f"atrim=0:{seconds}", "afade=t=in:d=0.08", f"afade=t=out:st={max(0, seconds - 1.2)}:d=1.2"]
-    extra_in = []
+    nprg = np.random.default_rng(seed)
+    tonic = 60 + key  # C4 + key
+    ring = 1.6
+    lo, hi = S["bpm"]
+    bpm = 120 * 4 / max(1.0, seconds - ring)  # 4 slots x 2 beats fill the Reel, last chord rings
+    slots = 4
+    while bpm < lo and slots < 8:  # long Reel: repeat the middle of the phrase
+        slots += 2
+        bpm = 120 * slots / max(1.0, seconds - ring)
+    bpm = max(lo, min(hi + 10, bpm))
+    beat = 60 / bpm
+    prog = S["prog"][:4]
+    if slots > 4:
+        prog = prog[:2] + prog[2:4] * ((slots - 2) // 2)
+    prog = prog + [S["prog"][4]]
+    mel = rng.choice(S["mel"])
+    mel = mel[:2] + mel[2:4] * ((slots - 2) // 2) + [mel[4]]
+    mx = Mix(seconds)
+    fl_notes, fl_prog = [], {}
+    H = lambda: rng.uniform(-0.012, 0.012)  # humanise timing
+    V = lambda v: max(10, min(127, v + rng.randint(-6, 6)))
+    prev = None
+    nsl = len(prog)
+    for si, cname in enumerate(prog):
+        t0 = si * 2 * beat
+        last = si == nsl - 1
+        slot_len = (2 * beat) if not last else ring + 0.6
+        root, notes = chord(cname, tonic - 12, base=36)
+        vo = voice_lead(prev, notes); prev = vo
+        dyn = [0.85, 0.92, 1.0, 0.95, 0.9, 1.0, 0.95, 0.9][min(si, 7)] if not last else 0.85
+        # ---------------- accompaniment
+        if style in ("tender_piano", "heartbreak", "night_rain"):
+            P = inst("piano")
+            mx.add("piano", P.render(root, slot_len + 0.2, V(int(62 * dyn))), t0 + H(), -0.15)
+            mx.add("piano", P.render(root + 12 if style != "night_rain" else root + 7, slot_len, V(int(50 * dyn))), t0 + H(), -0.1)
+            if style == "tender_piano":
+                pat = [vo[0], vo[1], vo[-1], vo[1]] if not last else [vo[0], vo[1], vo[-1]]
+                for k, n in enumerate(pat):
+                    mx.add("piano", P.render(n, slot_len - k * beat * .5, V(int(48 * dyn))), t0 + k * beat * .5 + H(), 0.15)
+            elif style == "heartbreak":
+                for k, n in enumerate([vo[0], vo[-1]] if not last else [vo[0]]):
+                    mx.add("piano", P.render(n, slot_len - k * beat, V(int(46 * dyn))), t0 + k * beat + H(), 0.15)
+                for k, n in enumerate(vo[1:3]):
+                    mx.add("piano", P.render(n, slot_len - k * beat, V(int(40 * dyn))), t0 + (k + .5) * beat + H(), 0.2)
+            else:
+                for k, n in enumerate(vo[:3]):
+                    mx.add("piano", P.render(n, slot_len, V(int(34 * dyn))), t0 + k * 0.06 + H(), 0.1)
+            if style == "tender_piano" and si >= 1:
+                mx.add("strings", inst("cello").render(root - 12 + 12, slot_len, V(70)), t0, -0.35, 0.55)
+            if style == "heartbreak":
+                mx.add("strings", inst("cello").render(root, slot_len, V(78)), t0, -0.4, 0.6)
+                if si >= 2:
+                    mx.add("strings", inst("violin").render(vo[-1] + 12, slot_len, V(64 + 8 * si)), t0, 0.4, 0.4)
+            if style == "night_rain" and si % 2 == 0:
+                mx.add("strings", inst("cello").render(root, slot_len * 2, V(62)), t0, -0.3, 0.5)
+        elif style == "hopeful_guitar":
+            G = inst("nylon")
+            pick = [root, vo[1], vo[-1], vo[1], root + 7, vo[1], vo[-1], vo[0]] if not last else [root, vo[1], vo[-1], vo[0] + 12]
+            for k, n in enumerate(pick):
+                mx.add("gtr", G.render(n, 1.2 if not last else ring, V(int((66 if k % 4 == 0 else 52) * dyn))), t0 + k * beat / 4 + H() * .5, 0.25 if k % 2 else -0.25)
+            mx.add("bass", inst("bass").render(root - 12, slot_len * .9, V(70)), t0, 0, 0.6)
+            for k in range(4 if not last else 0):
+                fl_notes.append((9, 70, t0 + k * beat / 2, 0.05, 30 + 12 * (k % 2 == 0)))
+            fl_prog[9] = 0
+        elif style == "music_box":
+            Hp = inst("harp")
+            for k, n in enumerate([root, vo[0], vo[1], vo[-1]] if not last else [root, vo[0], vo[1], vo[-1], vo[0] + 12]):
+                mx.add("harp", Hp.render(n, slot_len, V(60)), t0 + k * beat * (0.5 if not last else 0.12) + H(), -0.2 + 0.1 * k)
+        elif style == "lofi":
+            for n in vo:
+                fl_notes.append((0, n, t0 + 0.01 * (n % 3), (1.6 if not last else ring) * beat, V(52)))
+                if not last:
+                    fl_notes.append((0, n, t0 + 1.5 * beat, 0.4 * beat, V(38)))
+            fl_notes.append((1, root - 12, t0, 1.2 * beat, V(84)))
+            if not last:
+                fl_notes.append((1, root - 12 + 7, t0 + 1.5 * beat, 0.4 * beat, V(70)))
+                fl_notes.append((9, 36, t0, .1, V(84))); fl_notes.append((9, 37, t0 + beat, .1, V(66)))
+                for k in range(4):
+                    fl_notes.append((9, 42, t0 + k * beat / 2 + (0.06 * beat if k % 2 else 0), .05, V(42 if k % 2 else 52)))
+            fl_prog.update({0: 4, 1: 33, 9: 0})
+        elif style == "cinematic":
+            for k, n in enumerate(vo):
+                mx.add("strings", inst("violin" if n >= 60 else "cello").render(n + (12 if n < 60 else 0), slot_len, V(int(70 * dyn + 6 * si))), t0 + 0.02 * k, -0.4 + 0.3 * k, 0.45)
+            mx.add("strings", inst("cello").render(root, slot_len, V(84)), t0, -0.3, 0.7)
+            mx.add("piano", inst("piano").render(root - 12, slot_len, V(90)), t0, 0, 0.8)
+            mx.add("piano", inst("piano").render(root, slot_len, V(70)), t0, 0, 0.6)
+            if si % 2 == 0 or last:
+                fl_notes.append((9, 41, t0, .5, V(80 if not last else 96))); fl_prog[9] = 0
+        elif style == "playful":
+            for k, n in enumerate([root, vo[-1], vo[0], vo[-1]] if not last else [root, vo[0], vo[-1]]):
+                fl_notes.append((0, n if k else n - 12, t0 + k * beat / 2, 0.2, V(78)))
+            if not last:
+                fl_notes += [(9, 39, t0 + beat, .05, V(70)), (9, 42, t0 + beat / 2, .05, V(40)), (9, 42, t0 + 1.5 * beat, .05, V(40))]
+            fl_prog.update({0: 45, 9: 0})
+        # ---------------- melody
+        bt = 0.0
+        for d, b in mel[si]:
+            m = deg(d, tonic + (12 if style in ("music_box",) else 0))
+            st = t0 + bt * beat + H()
+            du = b * beat * (0.92 if not last else 1) + (ring if last else 0)
+            vm = V(int((80 if bt == 0 else 70) * dyn))
+            if style in ("tender_piano", "heartbreak", "night_rain"):
+                mx.add("lead", inst("piano").render(m + (12 if style == "night_rain" else 0), du + 0.3, vm), st, 0.05)
+            elif style == "hopeful_guitar":
+                mx.add("lead", inst("flute").render(m + 12, du, V(int(66 * dyn))), st, 0.1, 0.5)
+            elif style == "music_box":
+                fl_notes.append((2, m, st, du, vm)); fl_prog[2] = 10
+            elif style == "lofi":
+                mx.add("lead", inst("piano").render(m + 12, du + 0.3, V(int(58 * dyn))), st, 0.1)
+            elif style == "cinematic":
+                mx.add("lead", inst("violin").render(m + 12, du, V(int(86 * dyn))), st, 0.15, 0.8)
+            elif style == "playful":
+                fl_notes.append((2, m + 12, st, min(du, 0.25), vm)); fl_prog[2] = 12
+            bt += b
+    # --------------------------------------------------------------------- mixing
+    total = mx.n
+    out = np.zeros((2, total), np.float32)
+    rev = {"piano": .32, "lead": .38, "strings": .45, "gtr": .25, "bass": .1, "harp": .4, "fluid": .2}
+    irs = reverb_ir(2.6 if style in ("heartbreak", "night_rain", "cinematic", "music_box") else 1.8, 5000, seed)
+    wet = np.zeros_like(out)
+    for name, b in mx.bus.items():
+        out += b
+        wet += b * rev.get(name, .25)
+    if fl_notes:
+        fs = fluid_stem(fl_notes, fl_prog, seconds, bpm)
+        fs = fs[:, :total] if fs.shape[1] >= total else np.pad(fs, ((0, 0), (0, total - fs.shape[1])))
+        g = 1.3
+        out += fs * g
+        wet += fs * g * rev["fluid"]
+    for c in range(2):
+        out[c] += fftconvolve(wet[c], irs[c])[:total].astype(np.float32) * 1.4
+    out = sosfilt(butter(2, 45, "high", fs=SR, output="sos"), out, axis=1)
     if style == "lofi":
-        af = ["lowpass=f=5500", "acrusher=bits=12:mix=0.15"] + af
-    fil = ",".join(af + ["loudnorm=I=-16:TP=-1.5:LRA=9"])
+        out = sosfilt(butter(2, 4800, "low", fs=SR, output="sos"), out, axis=1)
     if style in ("lofi", "night_rain"):
-        noise = "pink" if style == "night_rain" else "brown"
-        amp = 0.035 if style == "night_rain" else 0.012
-        cmd = ["ffmpeg", "-v", "error", "-y", "-i", raw, "-f", "lavfi", "-i", f"anoisesrc=c={noise}:a={amp}:d={seconds + 1}",
-               "-filter_complex", f"[1]highpass=f=1500,lowpass=f=7000[n];[0][n]amix=inputs=2:weights=1 1:normalize=0,{fil}",
-               "-ar", "44100", "-ac", "2", out_wav]
-    else:
-        cmd = ["ffmpeg", "-v", "error", "-y", "-i", raw, "-af", fil, "-ar", "44100", "-ac", "2", out_wav]
-    subprocess.run(cmd, check=True)
+        rr = np.random.default_rng(seed)
+        noise = rr.standard_normal((2, total)).astype(np.float32)
+        if style == "night_rain":
+            noise = sosfilt(butter(2, [800, 6000], "band", fs=SR, output="sos"), noise, axis=1) * 0.02
+        else:
+            crack = np.zeros((2, total), np.float32)
+            idx = rr.integers(0, total, int(seconds * 25))
+            crack[:, idx] = rr.standard_normal(len(idx)) * 0.15
+            noise = sosfilt(butter(2, 3000, "high", fs=SR, output="sos"), crack, axis=1)
+        out = out + noise
+    # gentle bus compression (RMS, slow)
+    rms = np.sqrt(sosfilt(butter(1, 4, "low", fs=SR, output="sos"), (out ** 2).mean(0)) + 1e-9)
+    thr = np.percentile(rms, 70)
+    gain = np.where(rms > thr, (thr / rms) ** 0.35, 1.0)
+    out = out * gain
+    n = int(seconds * SR)
+    out = out[:, :n]
+    fade = int(0.9 * SR)
+    out[:, -fade:] *= np.linspace(1, 0, fade) ** 1.5
+    out[:, :200] *= np.linspace(0, 1, 200)
+    out /= max(1e-6, np.abs(out).max())
+    wk = tempfile.mkdtemp()
+    tmp = os.path.join(wk, "pre.wav")
+    import wave
+    with wave.open(tmp, "wb") as w:
+        w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
+        w.writeframes((out.T * 0.9 * 32767).astype(np.int16).tobytes())
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", tmp, "-af", "loudnorm=I=-15:TP=-1.5:LRA=11", "-ar", str(SR), out_wav],
+                   check=True)
     return out_wav
 
 
