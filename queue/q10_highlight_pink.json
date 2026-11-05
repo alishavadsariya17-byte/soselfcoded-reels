@@ -1,0 +1,45 @@
+{
+ "slug": "reply-in-two-days",
+ "format": "highlight",
+ "bg": "paper",
+ "paper": [
+  226,
+  220,
+  212
+ ],
+ "mottle": 0.9,
+ "specks": 0.1,
+ "x": 110,
+ "width": 860,
+ "duration": 8,
+ "highlight_color": [
+  244,
+  176,
+  196
+ ],
+ "blocks": [
+  {
+   "text": "Lately I've been learning this,",
+   "font": "garamond",
+   "size": 58,
+   "t": 0.3
+  },
+  {
+   "text": "\"Stop replying in two minutes to people who take two days to remember you exist.\"",
+   "font": "garamond",
+   "size": 60,
+   "lh": 1.42,
+   "gap": 70,
+   "t": 0.9,
+   "style": "highlight",
+   "t_hl": 1.5,
+   "sweep": 1.6
+  }
+ ],
+ "music": {
+  "mood": "sassy",
+  "key": 1,
+  "seed": 41
+ },
+ "caption": "Match the energy you're given. 🖤\nBe honest, are you the fast replier? 👇\nSend this to the friend who needs to hear it.\n\n#selfworth #knowyourworth #relatable #selfrespect #quotes #soselfcoded"
+}

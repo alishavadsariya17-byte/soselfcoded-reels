@@ -101,6 +101,19 @@
    "permalink": "https://www.instagram.com/reel/DfVtVLJjQRd/",
    "mediaId": "18121452337971886",
    "status": "published automatically"
+  },
+  {
+   "date": "2026-11-05",
+   "slot": "midday",
+   "format": "maroon",
+   "mood": "funny",
+   "music": "playful",
+   "hook": "my love language is you remembering the tiny thing i said once three weeks ago",
+   "file": "reels/2026-11-05_midday_love-language.mp4",
+   "spec": "specs/2026-11-05_midday.json",
+   "permalink": "https://www.instagram.com/reel/DfXiCnYjdUD/",
+   "mediaId": "18605021350065568",
+   "status": "published automatically"
   }
  ],
  "approval_required": false,

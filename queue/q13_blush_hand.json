@@ -1,0 +1,60 @@
+{
+ "slug": "proud-of-small-things",
+ "format": "gaegu",
+ "bg": "paper",
+ "paper": [
+  240,
+  224,
+  220
+ ],
+ "mottle": 0.3,
+ "specks": 0.0,
+ "fiber": 0.5,
+ "x": 160,
+ "width": 800,
+ "duration": 8.5,
+ "blocks": [
+  {
+   "text": "a quiet confession:",
+   "font": "gaegu",
+   "size": 64,
+   "color": [
+    40,
+    36,
+    34
+   ],
+   "t": 0.3
+  },
+  {
+   "text": "i'm proud of myself for things nobody claps for. getting up. drinking water. not texting him back.",
+   "font": "gaegu",
+   "size": 64,
+   "color": [
+    40,
+    36,
+    34
+   ],
+   "lh": 1.35,
+   "gap": 70,
+   "t": 1.2
+  },
+  {
+   "text": "it counts.",
+   "font": "gaegu",
+   "size": 64,
+   "color": [
+    40,
+    36,
+    34
+   ],
+   "gap": 70,
+   "t": 3.4
+  }
+ ],
+ "music": {
+  "mood": "hopeful",
+  "key": -2,
+  "seed": 36
+ },
+ "caption": "The small wins are the big wins. 🖤\nTell me one thing you're quietly proud of 👇\nSave this for a day you feel like you did nothing.\n\n#smallwins #selflove #healingjourney #proudofmyself #softlife #soselfcoded"
+}

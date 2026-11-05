@@ -1,0 +1,46 @@
+{
+ "slug": "main-character-coffee",
+ "format": "coffee",
+ "bg": "coffee",
+ "x": 0,
+ "width": 640,
+ "align": "center",
+ "y_offset": -110,
+ "duration": 7.5,
+ "zoom": [
+  1.0,
+  1.05
+ ],
+ "blocks": [
+  {
+   "text": "my 2026 plan:",
+   "font": "sserif",
+   "size": 52,
+   "color": [
+    238,
+    232,
+    224
+   ],
+   "t": 0.3
+  },
+  {
+   "text": "\"drink the coffee while it's still hot, answer emails later, and stop apologising for taking up space.\"",
+   "font": "sserif",
+   "size": 50,
+   "color": [
+    238,
+    232,
+    224
+   ],
+   "lh": 1.25,
+   "gap": 60,
+   "t": 1.2
+  }
+ ],
+ "music": {
+  "mood": "chill",
+  "key": -1,
+  "seed": 23
+ },
+ "caption": "Hot coffee is a form of self-respect. ☕🖤\nWhat's one small rule you're living by lately? 👇\nSave this for your next busy morning.\n\n#coffeequotes #slowliving #softlife #relatable #morningthoughts #soselfcoded"
+}
